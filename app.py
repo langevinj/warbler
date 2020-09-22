@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, UserUpdateForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, Likes
 
 CURR_USER_KEY = "curr_user"
 
@@ -151,7 +151,11 @@ def users_show(user_id):
                 .order_by(Message.timestamp.desc())
                 .limit(100)
                 .all())
-    return render_template('users/show.html', user=user, messages=messages)
+
+    #getting all likes to be counted for like-count
+    all_likes = Likes.query.filter(Likes.user_id == g.user.id).all()
+
+    return render_template('users/show.html', user=user, messages=messages, count=len(all_likes))
 
 
 @app.route('/users/<int:user_id>/following')
@@ -311,6 +315,32 @@ def messages_destroy(message_id):
 
     return redirect(f"/users/{g.user.id}")
 
+##############################################################################
+#Liking warbles
+
+
+@app.route("/users/add_like/<int:message_id>", methods=["POST"])
+def add_like(message_id):
+    """like warbles and add to liked list"""
+    if not g.user:
+        flash("You must be logged in to like warbles", "danger")
+        return redirect("/")
+
+    message = Message.query.get_or_404(message_id)
+
+    if message not in g.user.likes:
+        """add a new like to the list"""
+        new_like = Likes(user_id=g.user.id, message_id=message_id)
+
+        db.session.add(new_like)
+        db.session.commit()
+    else:
+        """Delete a like"""
+        Likes.unlike(message_id)
+
+    return redirect("/")
+    
+
 
 ##############################################################################
 # Homepage and error pages
@@ -325,13 +355,14 @@ def homepage():
     """
 
     if g.user:
+        likes = g.user.likes
         messages = (Message
                     .query
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
 
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=messages, likes=likes)
 
     else:
         return render_template('home-anon.html')

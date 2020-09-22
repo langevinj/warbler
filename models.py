@@ -48,6 +48,15 @@ class Likes(db.Model):
         unique=True
     )
 
+    @classmethod
+    def unlike(cls, message_id):
+        """Method for removing a like from the users list"""
+        like = Likes.query.filter(Likes.message_id == message_id).first()
+
+        db.session.delete(like)
+        db.session.commit()
+ 
+
 
 class User(db.Model):
     """User in the system."""
