@@ -71,3 +71,66 @@ class MessageViewTestCase(TestCase):
 
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
+
+            
+    def test_add_message_form(self):
+        """Can you access the add a message form?"""
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+        
+            resp = c.get("/messages/new")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<button class="btn btn-outline-success btn-block">Add my message!</button>', html)
+
+
+    def test_messages_show(self):
+        """Test showing a message"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+        
+        m = Message(
+            text="Im tired today",
+            timestamp="2007-05-08 12:35:29.123",
+            user_id=self.testuser.id 
+        )
+        db.session.add(m)
+        db.session.commit()
+
+        resp = c.get(f"/messages/{m.id}")
+        html = resp.get_data(as_text=True)
+
+        #Make sure the correct message is displayed
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Im tired today", html)
+    
+    def test_messages_destroy(self):
+        """Test deleting a message"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+        m = Message(
+            text="Im tired today",
+            timestamp="2007-05-08 12:35:29.123",
+            user_id=self.testuser.id
+        )
+        #add message to session
+        db.session.add(m)
+        db.session.commit()
+
+        #attempt to delete
+        resp = c.post(f"/messages/{m.id}/delete")
+        html = resp.get_data(as_text=True)
+
+        #grab all current messages
+        messages = Message.query.all()
+
+        #test redirection
+        self.assertEqual(resp.status_code, 302)
+        #test the message is deleted
+        self.assertNotIn(m, messages)
