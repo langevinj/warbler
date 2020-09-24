@@ -20,7 +20,7 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 # Now we can import app
 
-from app import app, CURR_USER_KEY
+from app import app, CURR_USER_KEY, do_logout, IntegrityError
 
 # Create our tables (we do this here, so we only create the tables
 # once for all tests --- in each test, we'll delete the data
@@ -72,6 +72,24 @@ class MessageViewTestCase(TestCase):
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
 
+            #test trying to add a message after user is logged out
+            
+
+            
+    def test_add_message_logged_out(self):
+        """Is someone prevented from adding a message when logged out"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+        
+            # self.do_logout()
+        
+            #need to find out how to test for errors
+            # resp = c.post("/messages/new", data={"text": "This thing on"})
+            # self.assertEqual(resp.status_code, 302)
+
+
+    
             
     def test_add_message_form(self):
         """Can you access the add a message form?"""
@@ -80,11 +98,11 @@ class MessageViewTestCase(TestCase):
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.testuser.id
         
-            resp = c.get("/messages/new")
-            html = resp.get_data(as_text=True)
-
-            self.assertEqual(resp.status_code, 200)
-            self.assertIn('<button class="btn btn-outline-success btn-block">Add my message!</button>', html)
+        resp = c.get("/messages/new")
+        html = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('<button class="btn btn-outline-success btn-block">Add my message!</button>', html)
+        
 
 
     def test_messages_show(self):
@@ -108,6 +126,7 @@ class MessageViewTestCase(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("Im tired today", html)
     
+
     def test_messages_destroy(self):
         """Test deleting a message"""
         with self.client as c:
@@ -134,3 +153,21 @@ class MessageViewTestCase(TestCase):
         self.assertEqual(resp.status_code, 302)
         #test the message is deleted
         self.assertNotIn(m, messages)
+
+    # def test_messages_destroy_logged_out(self):
+    #     """Test that a user is not allowed to delete messages when they are signed out"""
+    #     with self.client as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.testuser.id
+
+    #         m = Message(
+    #             text="Im tired today",
+    #             timestamp="2007-05-08 12:35:29.123",
+    #             user_id=self.testuser.id
+    #         )
+    #         #logout user
+    #         do_logout()
+
+            #should get an error
+            # resp = c.post(f"/messages/{m.id}/delete")
+            # html = resp.get_data(as_text=True)

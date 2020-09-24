@@ -7,9 +7,8 @@
 
 import os
 from unittest import TestCase
-
 from models import db, User, Message, Follows
-
+from sqlalchemy.exc import IntegrityError
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -30,7 +29,7 @@ db.create_all()
 
 
 class UserModelTestCase(TestCase):
-    """Test model for User."""
+    """Test model for Users."""
 
     def setUp(self):
         """Create test client, add sample data."""
@@ -154,18 +153,14 @@ class UserModelTestCase(TestCase):
     # def test_user_create_fail(self):
     #     """Tests that a user is not created when given invalid credentials"""
         
-    #     u = User(
+    #     u = User.signup(
     #         email="test@test.com",
     #         password="HASHED_PASSWORD"
     #     )
 
-    #     try:
-    #         db.session.add(u)
+    #     with self.assertRaises(IntegrityError):
     #         db.session.commit()
-    #     except:
-    #         db.session.commit()
-        
-    #     all_user = User.query.all()
+    
 
     def test_user_authenticate(self):
         """Test that a user is returned with a valid username and password"""
