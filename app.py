@@ -153,7 +153,7 @@ def users_show(user_id):
                 .all())
 
     #getting all likes to be counted for like-count
-    all_likes = Likes.query.filter(Likes.user_id == g.user.id).all()
+    all_likes = Likes.query.filter(Likes.user_id == user.id).all()
 
     return render_template('users/show.html', user=user, messages=messages, count=len(all_likes))
 
