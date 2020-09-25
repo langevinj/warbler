@@ -52,13 +52,13 @@
               <p>{{ msg.text }}</p>
             </div>
           {% if msg.user != g.user %}
-            <form method="POST" action="/users/add_like/{{ msg.id }}" id="messages-form">
-              <button class="
+            <form id="messages-form">
+              <button id="{{ msg.id }}" class="like
                 btn 
                 btn-sm 
                 {{'btn-warning' if msg in likes else 'btn-secondary'}}"
               >
-                <i class="{{'far fa-star fa-sm' if msg in likes else 'fa fa-thumbs-up'}}"></i> 
+                <i style="pointer-events: none" class="{{'far fa-star fa-sm' if msg in likes else 'fa fa-thumbs-up'}}"></i> 
               </button>
             </form>
           {% endif %}

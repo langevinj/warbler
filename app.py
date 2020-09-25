@@ -323,10 +323,9 @@ def messages_destroy(message_id):
 ##############################################################################
 #Liking warbles
 
-
 @app.route("/users/add_like/<int:message_id>", methods=["POST"])
 def add_like(message_id):
-    """like warbles and add to liked list"""
+    """like warbles and add to liked list, handled with AJAX"""
     if not g.user:
         flash("You must be logged in to like warbles", "danger")
         return redirect("/")
@@ -339,11 +338,11 @@ def add_like(message_id):
 
         db.session.add(new_like)
         db.session.commit()
+        return "liked"
     else:
         """Delete a like"""
         Likes.unlike(message_id)
-
-    return redirect("/")
+        return "unliked"
     
 
 
