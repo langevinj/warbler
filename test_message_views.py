@@ -1,10 +1,5 @@
 """Message View tests."""
 
-# run these tests like:
-#
-#    FLASK_ENV=production python -m unittest test_message_views.py
-
-
 import os
 from unittest import TestCase
 from sqlalchemy import exc
@@ -12,14 +7,11 @@ from models import db, connect_db, Message, User
 
 os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
-
 # Now we can import app
 
 from app import app, CURR_USER_KEY, do_logout, IntegrityError
 
-# Create our tables (we do this here, so we only create the tables
-# once for all tests --- in each test, we'll delete the data
-# and create fresh new clean test data
+# Create our tables 
 
 db.create_all()
 
@@ -101,85 +93,55 @@ class MessageViewTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIn("a test message", str(resp.data))
             
+    def test_message_destroy(self):
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
 
+            m = Message(id=1234, text="a test message",
+                        user_id=self.testuser.id)
+            db.session.add(m)
+            db.session.commit()
 
-    # def test_add_message_form(self):
-    #     """Can you access the add a message form?"""
+            resp = c.post(f"/messages/{m.id}/delete")
+            all_messages = Message.query.all()
 
-    #     with self.client as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.testuser.id
-        
-    #     resp = c.get("/messages/new")
-    #     html = resp.get_data(as_text=True)
-    #     self.assertEqual(resp.status_code, 200)
-    #     self.assertIn('<button class="btn btn-outline-success btn-block">Add my message!</button>', html)
-        
-
-
-    # def test_messages_show(self):
-    #     """Test showing a message"""
-    #     with self.client as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.testuser.id
-        
-    #     m = Message(
-    #         text="Im tired today",
-    #         timestamp="2007-05-08 12:35:29.123",
-    #         user_id=self.testuser.id 
-    #     )
-    #     db.session.add(m)
-    #     db.session.commit()
-
-    #     resp = c.get(f"/messages/{m.id}")
-    #     html = resp.get_data(as_text=True)
-
-    #     #Make sure the correct message is displayed
-    #     self.assertEqual(resp.status_code, 200)
-    #     self.assertIn("Im tired today", html)
+            self.assertEqual(resp.status_code, 302)
+            self.assertNotIn(m, all_messages)
     
+    def test_messages_destroy_logged_out(self):
+        u2 = User.signup(username="unauthorized", email="testfake@test.com", password="password", image_url=None)
 
-    # def test_messages_destroy(self):
-    #     """Test deleting a message"""
-    #     with self.client as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.testuser.id
+        u2.id = 456789
+        
+        m = Message(id=1234, text="a test message",
+                            user_id=self.testuser.id)
 
-    #     m = Message(
-    #         text="Im tired today",
-    #         timestamp="2007-05-08 12:35:29.123",
-    #         user_id=self.testuser.id
-    #     )
-    #     #add message to session
-    #     db.session.add(m)
-    #     db.session.commit()
+        db.session.add_all([u2, m])
+        db.session.commit()
 
-    #     #attempt to delete
-    #     resp = c.post(f"/messages/{m.id}/delete")
-    #     html = resp.get_data(as_text=True)
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = 456789
 
-    #     #grab all current messages
-    #     messages = Message.query.all()
+            resp = c.post(f"/messages/1234/delete", follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", str(resp.data))
 
-    #     #test redirection
-    #     self.assertEqual(resp.status_code, 302)
-    #     #test the message is deleted
-    #     self.assertNotIn(m, messages)
+            m = Message.query.get(1234)
+            self.assertIsNotNone(m)
 
-    # def test_messages_destroy_logged_out(self):
-    #     """Test that a user is not allowed to delete messages when they are signed out"""
-    #     with self.client as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.testuser.id
 
-    #         m = Message(
-    #             text="Im tired today",
-    #             timestamp="2007-05-08 12:35:29.123",
-    #             user_id=self.testuser.id
-    #         )
-    #         #logout user
-    #         do_logout()
+    def test_messages_delete_no_authentication(self):
+        m = Message(id=1234, text="a test message",
+                    user_id=self.testuser.id)
+        db.session.add(m)
+        db.session.commit()
 
-            #should get an error
-            # resp = c.post(f"/messages/{m.id}/delete")
-            # html = resp.get_data(as_text=True)
+        with self.client as c:
+            resp = c.post("/messages/1234/delete", follow_redirects=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", str(resp.data))
+
+
