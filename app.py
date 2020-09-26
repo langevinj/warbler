@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template, request, flash, redirect, session, g
+from flask import Flask, render_template, request, flash, redirect, session, g, jsonify
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
@@ -126,7 +126,7 @@ def list_users():
 
     Can take a 'q' param in querystring to search by that username.
     """
-
+    form = MessageForm()
     search = request.args.get('q')
 
     if not search:
@@ -134,13 +134,13 @@ def list_users():
     else:
         users = User.query.filter(User.username.like(f"%{search}%")).all()
 
-    return render_template('users/index.html', users=users)
+    return render_template('users/index.html', users=users, form=form)
 
 
 @app.route('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
-
+    form = MessageForm()
     user = User.query.get_or_404(user_id)
 
     # snagging messages in order from the database;
@@ -155,31 +155,33 @@ def users_show(user_id):
     #getting all likes to be counted for like-count
     all_likes = Likes.query.filter(Likes.user_id == user.id).all()
 
-    return render_template('users/show.html', user=user, messages=messages, count=len(all_likes))
+    return render_template('users/show.html', user=user, messages=messages, count=len(all_likes), form=form)
 
 
 @app.route('/users/<int:user_id>/following')
 def show_following(user_id):
     """Show list of people this user is following."""
-
+    form = MessageForm()
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/following.html', user=user)
+    all_likes = Likes.query.filter(Likes.user_id == user.id).all()
+    return render_template('users/following.html', user=user, form=form, count=len(all_likes))
 
 
 @app.route('/users/<int:user_id>/followers')
 def users_followers(user_id):
     """Show list of followers of this user."""
-
+    form = MessageForm()
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/followers.html', user=user)
+    all_likes = Likes.query.filter(Likes.user_id == user.id).all()
+    return render_template('users/followers.html', user=user, form=form, count=len(all_likes))
 
 
 @app.route('/users/follow/<int:follow_id>', methods=['POST'])
@@ -215,23 +217,24 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
-
+    
     if not g.user:
         flash("Access unauthorized", "danger")
         return redirect ("/")
-
-    form = UserUpdateForm()
+    form = MessageForm()
+    form2 = UserUpdateForm()
+    
     
 
-    if form.validate_on_submit():
-        user = User.authenticate(g.user.username, form.password.data)
+    if form2.validate_on_submit():
+        user = User.authenticate(g.user.username, form2.password.data)
          
         if user:
-            user.username = form.username.data
-            user.email = form.email.data
-            user.image_url = form.image_url.data
-            user.header_image_url = form.header_image_url.data
-            user.bio = form.bio.data
+            user.username = form2.username.data
+            user.email = form2.email.data
+            user.image_url = form2.image_url.data
+            user.header_image_url = form2.header_image_url.data
+            user.bio = form2.bio.data
             
             db.session.add(user)
             db.session.commit()
@@ -242,12 +245,12 @@ def profile():
             return redirect('/')
 
     else: 
-        form.username.data = g.user.username
-        form.email.data = g.user.email
-        form.image_url.data = g.user.image_url
-        form.header_image_url.data = g.user.header_image_url
-        form.bio.data = g.user.bio
-        return render_template('/users/edit.html', form=form)
+        form2.username.data = g.user.username
+        form2.email.data = g.user.email
+        form2.image_url.data = g.user.image_url
+        form2.header_image_url.data = g.user.header_image_url
+        form2.bio.data = g.user.bio
+        return render_template('/users/edit.html', form=form, form2=form2)
 
 
 
@@ -270,35 +273,69 @@ def delete_user():
 ##############################################################################
 # Messages routes:
 
-@app.route('/messages/new', methods=["GET", "POST"])
+# @app.route('/messages/new', methods=["GET", "POST"])
+# def messages_add():
+#     """Add a message:
+
+#     Show form if GET. If valid, update message and redirect to user page.
+#     """
+
+#     if not g.user:
+#         flash("Access unauthorized.", "danger")
+#         return redirect("/")
+
+#     form = MessageForm()
+
+#     if form.validate_on_submit():
+#         msg = Message(text=form.text.data)
+#         g.user.messages.append(msg)
+#         db.session.commit()
+
+#         return redirect(f"/users/{g.user.id}")
+
+#     return render_template('messages/new.html', form=form)
+
+    
+@app.route('/messages/new', methods=["POST"])
 def messages_add():
     """Add a message:
 
     Show form if GET. If valid, update message and redirect to user page.
     """
 
+
+    form = MessageForm()
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    form = MessageForm()
-
-    if form.validate_on_submit():
-        msg = Message(text=form.text.data)
+    if request.data != None:
+        req_data = request.get_json()
+        msg = Message(text=req_data['message'])
         g.user.messages.append(msg)
         db.session.commit()
 
-        return redirect(f"/users/{g.user.id}")
+        return "added"
+    
+    # msg = Message(text=message)
+    # g.user.messages.append(msg)
+    # db.session.commit()
+    
+    # test = Message.query.filter(Message.id == msg.id).first()
+    # if len(test) == 1:
+    #     return "added!!!"
+    # else:
+    #     return "failed"
 
-    return render_template('messages/new.html', form=form)
 
 
 @app.route('/messages/<int:message_id>', methods=["GET"])
 def messages_show(message_id):
     """Show a message."""
+    form = MessageForm()
 
     msg = Message.query.get(message_id)
-    return render_template('messages/show.html', message=msg)
+    return render_template('messages/show.html', message=msg, form=form)
 
 
 @app.route('/messages/<int:message_id>/delete', methods=["POST"])
@@ -357,7 +394,7 @@ def homepage():
     - anon users: no messages
     - logged in: 100 most recent messages of followed_users
     """
-
+    form = MessageForm()
     if g.user:
         likes = g.user.likes
         following = g.user.following 
@@ -370,7 +407,7 @@ def homepage():
                     .limit(100)
                     .all())
 
-        return render_template('home.html', messages=messages, likes=likes)
+        return render_template('home.html', messages=messages, likes=likes, form=form)
 
     else:
         return render_template('home-anon.html')
