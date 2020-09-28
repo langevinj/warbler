@@ -221,20 +221,19 @@ def profile():
     if not g.user:
         flash("Access unauthorized", "danger")
         return redirect ("/")
-    form = MessageForm()
-    form2 = UserUpdateForm()
+    form = UserUpdateForm()
     
     
 
-    if form2.validate_on_submit():
-        user = User.authenticate(g.user.username, form2.password.data)
+    if form.validate_on_submit():
+        user = User.authenticate(g.user.username, form.password.data)
          
         if user:
-            user.username = form2.username.data
-            user.email = form2.email.data
-            user.image_url = form2.image_url.data
-            user.header_image_url = form2.header_image_url.data
-            user.bio = form2.bio.data
+            user.username = form.username.data
+            user.email = form.email.data
+            user.image_url = form.image_url.data
+            user.header_image_url = form.header_image_url.data
+            user.bio = form.bio.data
             
             db.session.add(user)
             db.session.commit()
@@ -245,12 +244,12 @@ def profile():
             return redirect('/')
 
     else: 
-        form2.username.data = g.user.username
-        form2.email.data = g.user.email
-        form2.image_url.data = g.user.image_url
-        form2.header_image_url.data = g.user.header_image_url
-        form2.bio.data = g.user.bio
-        return render_template('/users/edit.html', form=form, form2=form2)
+        form.username.data = g.user.username
+        form.email.data = g.user.email
+        form.image_url.data = g.user.image_url
+        form.header_image_url.data = g.user.header_image_url
+        form.bio.data = g.user.bio
+        return render_template('/users/edit.html', form=form)
 
 
 
@@ -273,49 +272,50 @@ def delete_user():
 ##############################################################################
 # Messages routes:
 
-# @app.route('/messages/new', methods=["GET", "POST"])
-# def messages_add():
-#     """Add a message:
-
-#     Show form if GET. If valid, update message and redirect to user page.
-#     """
-
-#     if not g.user:
-#         flash("Access unauthorized.", "danger")
-#         return redirect("/")
-
-#     form = MessageForm()
-
-#     if form.validate_on_submit():
-#         msg = Message(text=form.text.data)
-#         g.user.messages.append(msg)
-#         db.session.commit()
-
-#         return redirect(f"/users/{g.user.id}")
-
-#     return render_template('messages/new.html', form=form)
-
-    
-@app.route('/messages/new', methods=["POST"])
+@app.route('/messages/new', methods=["GET", "POST"])
 def messages_add():
     """Add a message:
 
     Show form if GET. If valid, update message and redirect to user page.
     """
 
-
-    form = MessageForm()
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    if request.data != None:
-        req_data = request.get_json()
-        msg = Message(text=req_data['message'])
+    form = MessageForm()
+
+    if form.validate_on_submit():
+        msg = Message(text=form.text.data)
         g.user.messages.append(msg)
         db.session.commit()
 
-        return "added"
+        return redirect(f"/users/{g.user.id}")
+
+    return render_template('messages/new.html', form=form)
+
+    
+# @app.route('/messages/new', methods=["POST"])
+# def messages_add():
+    """Add a message:
+
+    Show form if GET. If valid, update message and redirect to user page.
+    """
+
+
+    # form = MessageForm()
+    # if not g.user:
+    #     flash("Access unauthorized.", "danger")
+    #     return redirect("/")
+
+    # if request.data != None:
+    #     req_data = request.get_json()
+    #     msg = Message(text=req_data['message'])
+    #     g.user.messages.append(msg)
+    #     db.session.commit()
+
+    #     form= MessageForm()
+    #     return 
     
     # msg = Message(text=message)
     # g.user.messages.append(msg)
